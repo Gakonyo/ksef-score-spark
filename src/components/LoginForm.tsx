@@ -85,11 +85,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
               {isLoading ? 'Logging in...' : 'Login'}
             </Button>
           </form>
-          <div className="mt-4 text-sm text-gray-500 text-center">
-            <p>Default credentials:</p>
-            <p>Admin: Admin/Admin</p>
-            <p>Judge: Judge[X]/Admin</p>
-          </div>
         </CardContent>
       </Card>
     </div>
