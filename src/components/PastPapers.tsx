@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, Download, FileText, Plus } from 'lucide-react';
+import { Upload, Download, FileText, Plus, X } from 'lucide-react';
 
 interface PastPaper {
   id: string;
@@ -37,6 +37,7 @@ const PastPapers: React.FC<PastPapersProps> = ({ userType }) => {
     term: '',
     fileName: ''
   });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const { toast } = useToast();
 
   const forms = ['Form 1', 'Form 2', 'Form 3', 'Form 4'];
@@ -81,24 +82,31 @@ const PastPapers: React.FC<PastPapersProps> = ({ userType }) => {
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setSelectedFile(file);
       setUploadData(prev => ({ ...prev, fileName: file.name }));
+      toast({
+        title: "File Selected",
+        description: `Selected: ${file.name}`,
+      });
     }
   };
 
   const handleUpload = () => {
-    if (!uploadData.title || !uploadData.subject || !uploadData.form || !uploadData.year || !uploadData.term) {
+    if (!uploadData.title || !uploadData.subject || !uploadData.form || !uploadData.year || !uploadData.term || !selectedFile) {
       toast({
         title: "Missing Information",
-        description: "Please fill in all required fields",
+        description: "Please fill in all required fields and select a file",
         variant: "destructive",
       });
       return;
     }
 
+    const currentUser = JSON.parse(localStorage.getItem('staffAuth') || '{}');
+    
     const newPaper: PastPaper = {
       id: Date.now().toString(),
       ...uploadData,
-      uploadedBy: 'Current Staff',
+      uploadedBy: currentUser.staffId || 'Current Staff',
       uploadDate: new Date().toISOString().split('T')[0]
     };
 
@@ -108,9 +116,10 @@ const PastPapers: React.FC<PastPapersProps> = ({ userType }) => {
 
     toast({
       title: "Upload Successful",
-      description: "Past paper has been uploaded successfully",
+      description: `${uploadData.title} has been uploaded successfully`,
     });
 
+    // Reset form
     setShowUploadForm(false);
     setUploadData({
       title: '',
@@ -120,6 +129,7 @@ const PastPapers: React.FC<PastPapersProps> = ({ userType }) => {
       term: '',
       fileName: ''
     });
+    setSelectedFile(null);
   };
 
   const handleDownload = (paper: PastPaper) => {
@@ -127,7 +137,20 @@ const PastPapers: React.FC<PastPapersProps> = ({ userType }) => {
       title: "Download Started",
       description: `Downloading ${paper.title}`,
     });
-    // In a real app, this would trigger an actual download
+    // Simulate download
+    const link = document.createElement('a');
+    link.href = '#';
+    link.download = paper.fileName;
+    link.click();
+  };
+
+  const clearFilters = () => {
+    setSelectedForm('');
+    setSelectedSubject('');
+    toast({
+      title: "Filters Cleared",
+      description: "Showing all past papers",
+    });
   };
 
   const filteredPapers = papers.filter(paper => {
@@ -144,32 +167,43 @@ const PastPapers: React.FC<PastPapersProps> = ({ userType }) => {
         {userType === 'staff' && (
           <Button onClick={() => setShowUploadForm(true)} className="bg-blue-600 hover:bg-blue-700">
             <Plus className="h-4 w-4 mr-2" />
-            Upload Past Paper
+            Add New Paper
           </Button>
         )}
       </div>
 
       {/* Upload Form */}
       {userType === 'staff' && showUploadForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Upload New Past Paper</CardTitle>
+        <Card className="border-2 border-blue-200">
+          <CardHeader className="bg-blue-50">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-blue-800">Upload New Past Paper</CardTitle>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => setShowUploadForm(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 pt-6">
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="title">Paper Title</Label>
+                <Label htmlFor="title" className="text-sm font-medium">Paper Title *</Label>
                 <Input
                   id="title"
                   value={uploadData.title}
                   onChange={(e) => setUploadData(prev => ({ ...prev, title: e.target.value }))}
                   placeholder="e.g., Mathematics Final Exam"
+                  className="mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="subject">Subject</Label>
+                <Label htmlFor="subject" className="text-sm font-medium">Subject *</Label>
                 <Select value={uploadData.subject} onValueChange={(value) => setUploadData(prev => ({ ...prev, subject: value }))}>
-                  <SelectTrigger>
+                  <SelectTrigger className="mt-1">
                     <SelectValue placeholder="Select subject" />
                   </SelectTrigger>
                   <SelectContent>
@@ -180,9 +214,9 @@ const PastPapers: React.FC<PastPapersProps> = ({ userType }) => {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="form">Form</Label>
+                <Label htmlFor="form" className="text-sm font-medium">Form *</Label>
                 <Select value={uploadData.form} onValueChange={(value) => setUploadData(prev => ({ ...prev, form: value }))}>
-                  <SelectTrigger>
+                  <SelectTrigger className="mt-1">
                     <SelectValue placeholder="Select form" />
                   </SelectTrigger>
                   <SelectContent>
@@ -193,18 +227,19 @@ const PastPapers: React.FC<PastPapersProps> = ({ userType }) => {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="year">Year</Label>
+                <Label htmlFor="year" className="text-sm font-medium">Year *</Label>
                 <Input
                   id="year"
                   value={uploadData.year}
                   onChange={(e) => setUploadData(prev => ({ ...prev, year: e.target.value }))}
                   placeholder="e.g., 2024"
+                  className="mt-1"
                 />
               </div>
               <div>
-                <Label htmlFor="term">Term</Label>
+                <Label htmlFor="term" className="text-sm font-medium">Term *</Label>
                 <Select value={uploadData.term} onValueChange={(value) => setUploadData(prev => ({ ...prev, term: value }))}>
-                  <SelectTrigger>
+                  <SelectTrigger className="mt-1">
                     <SelectValue placeholder="Select term" />
                   </SelectTrigger>
                   <SelectContent>
@@ -215,16 +250,20 @@ const PastPapers: React.FC<PastPapersProps> = ({ userType }) => {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="file">Upload File</Label>
+                <Label htmlFor="file" className="text-sm font-medium">Upload File *</Label>
                 <Input
                   id="file"
                   type="file"
                   accept=".pdf,.doc,.docx"
                   onChange={handleFileUpload}
+                  className="mt-1"
                 />
+                {selectedFile && (
+                  <p className="text-sm text-green-600 mt-1">Selected: {selectedFile.name}</p>
+                )}
               </div>
             </div>
-            <div className="flex space-x-4">
+            <div className="flex space-x-4 pt-4">
               <Button onClick={handleUpload} className="bg-green-600 hover:bg-green-700">
                 <Upload className="h-4 w-4 mr-2" />
                 Upload Paper
@@ -243,7 +282,7 @@ const PastPapers: React.FC<PastPapersProps> = ({ userType }) => {
           <CardTitle>Filter Past Papers</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid md:grid-cols-2 gap-4">
+          <div className="grid md:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="formFilter">Filter by Form</Label>
               <Select value={selectedForm} onValueChange={setSelectedForm}>
@@ -271,6 +310,11 @@ const PastPapers: React.FC<PastPapersProps> = ({ userType }) => {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="flex items-end">
+              <Button variant="outline" onClick={clearFilters} className="w-full">
+                Clear Filters
+              </Button>
             </div>
           </div>
         </CardContent>
@@ -307,12 +351,18 @@ const PastPapers: React.FC<PastPapersProps> = ({ userType }) => {
           <CardContent className="p-8 text-center">
             <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-600 mb-2">No past papers found</h3>
-            <p className="text-gray-500">
+            <p className="text-gray-500 mb-4">
               {userType === 'staff' 
                 ? 'Upload your first past paper to get started.' 
                 : 'Check back later for new past papers.'
               }
             </p>
+            {userType === 'staff' && !showUploadForm && (
+              <Button onClick={() => setShowUploadForm(true)} className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="h-4 w-4 mr-2" />
+                Add First Paper
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
